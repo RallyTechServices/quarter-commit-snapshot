@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quarter Commit Snapshot</title>
+    <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
+    <!--  Build Date: Tue May 24 2016 10:17:03 GMT-0400 (EDT) -->
+    
+    <script type="text/javascript">
+        var APP_BUILD_DATE = "Tue May 24 2016 10:17:03 GMT-0400 (EDT)";
+        var CHECKSUM = 6489352602;
+    </script>
+    
+    <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function() {
+             
+/**
+ * A link that pops up a version dialog box
+ */
+
+Ext.define('Rally.technicalservices.InfoLink',{
+    extend: 'Rally.ui.dialog.Dialog',
+    alias: 'widget.tsinfolink',
+    
+    /**
+     * @cfg {String} informationHtml
+     * Additional text to be displayed on the popup dialog (for exmaple,
+     * to add a description of the app's use or functionality)
+     */
+    informationHtml: null,
+    
+    /**
+     * 
+     * cfg {String} title
+     * The title for the dialog box
+     */
+    title: "Build Information",
+    
+    defaults: { padding: 5, margin: 5 },
+
+    closable: true,
+     
+    draggable: true,
+
+    autoShow: true,
+   
+    width: 350, 
+    
+    initComponent: function() {
+        var id = Ext.id(this);
+        this.title =  "<span class='icon-help'> </span>" + this.title;
+        this.callParent(arguments);
+    },
+    
+    _generateChecksum: function(string){
+        var chk = 0x12345678,
+            i;
+        string = string.replace(/var CHECKSUM = .*;/,"");
+        string = string.replace(/\s/g,"");  //Remove all whitespace from the string.
+        
+        for (i = 0; i < string.length; i++) {
+            chk += (string.charCodeAt(i) * i);
+        }
+    
+        return chk;
+    },
+    
+    _checkChecksum: function(container) {
+        var deferred = Ext.create('Deft.Deferred');
+        console.log("_checkChecksum", container);
+        var me = this;
+        
+        Ext.Ajax.request({
+            url: document.URL,
+            params: {
+                id: 1
+            },
+            success: function (response) {
+                text = response.responseText;
+                if ( CHECKSUM ) {
+                    if ( CHECKSUM !== me._generateChecksum(text) ) {
+                        console.log("Checksums don't match!");
+                        deferred.resolve(false);
+                        return;
+                    }
+                }
+                deferred.resolve(true);
+            }
+        });
+        
+        return deferred.promise;
+    },
+    
+    afterRender: function() {
+        var app = Rally.getApp();
+        
+        if (! app.isExternal() ) {
+                
+            this._checkChecksum(app).then({
+                scope: this,
+                success: function(result){
+                    if ( !result ) {
+                        this.addDocked({
+                            xtype:'container',
+                            cls: 'build-info',
+                            padding: 2,
+                            html:'<span class="icon-warning"> </span>Checksums do not match'
+                        });
+                    }
+                },
+                failure: function(msg){
+                    console.log("oops:",msg);
+                }
+            });
+        } else {
+            this.addDocked({
+                xtype:'container',
+                cls: 'build-info',
+                padding: 2,
+                html:'... Running externally'
+            });
+        }
+        this.callParent(arguments);
+    },
+    
+    beforeRender: function() {
+        var me = this;
+        this.callParent(arguments);
+
+        if (this.informationHtml) {
+            this.addDocked({
+                xtype: 'component',
+                componentCls: 'intro-panel',
+                padding: 2,
+                html: this.informationHtml
+            });
+        }
+        
+        this.addDocked({
+            xtype:'container',
+            cls: 'build-info',
+            padding: 2,
+            html:"This app was created by the Rally Technical Services Team."
+        });
+        
+        if ( APP_BUILD_DATE ) {
+            this.addDocked({
+                xtype:'container',
+                cls: 'build-info',
+                padding: 2,
+                html:'Build date/time: ' + APP_BUILD_DATE
+            });
+        }
+    }
+});
+
+/*
+ */
+Ext.define('Rally.technicalservices.Logger',{
+    constructor: function(config){
+        Ext.apply(this,config);
+    },
+    log: function(args){
+        var timestamp = "[ " + Ext.util.Format.date(new Date(), "Y-m-d H:i:s.u") + " ]";
+        //var output_args = arguments;
+        //output_args.unshift( [ "[ " + timestamp + " ]" ] );
+        //output_args = Ext.Array.push(output_args,arguments);
+        
+        var output_args = [];
+        output_args = Ext.Array.push(output_args,[timestamp]);
+        output_args = Ext.Array.push(output_args, Ext.Array.slice(arguments,0));
+
+        window.console && console.log.apply(console,output_args);
+    }
+
+});
+
+Ext.define('TSDateFlags',{
+    extend: 'Ext.data.Model',
+    
+    fields: [
+        { name: 'Date1', type: 'string'}, // Y,N
+        { name: 'Date2', type: 'string' },
+        { name: 'HierarchicalRequirement', type: 'object'}
+    ],
+    isSelectable: function() {
+        return true;
+    }
+    
+});
+Ext.define("QCSApp", {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+    logger: new Rally.technicalservices.Logger(),
+    defaults: { margin: 10 },
+    items: [
+        {xtype:'container',itemId:'selector_box',layout:{type:'hbox'}},
+        {xtype:'container',itemId:'display_box'}
+    ],
+
+    integrationHeaders : {
+        name : "QCSApp"
+    },
+                        
+    launch: function() {
+        var me = this;
+        me._addSelector();
+    },
+
+    _addSelector: function(){
+        var me = this;
+        var type_filters = Rally.data.wsapi.Filter.or([
+                {property: 'TypePath', value: 'HierarchicalRequirement'},
+                {property: 'TypePath', value: 'PortfolioItem/Feature'}
+            ]);
+
+        me.down('#selector_box').add(
+        [{
+            xtype: 'rallyreleasecombobox',
+            margin:10
+
+        },
+        {
+            name: 'type',
+            xtype: 'rallycombobox',
+            itemId:'artifact_type',
+            allowBlank: false,
+            autoSelect: false,
+            fieldLabel: 'Type',
+            initialValue: 'UserStory',
+            margin:10,
+            storeConfig: {
+                model: Ext.identityFn('TypeDefinition'),
+                sorters: [{ property: 'DisplayName' }],
+                fetch: ['DisplayName', 'ElementName', 'TypePath', 'Parent', 'UserListable'],
+                filters: type_filters,
+                autoLoad: true,
+                remoteSort: false,
+                remoteFilter: true
+            },
+            displayField: 'DisplayName',
+            valueField: 'TypePath',
+            readyEvent: 'ready'
+        }
+        ,{
+            xtype: 'datefield',
+            anchor: '100%',
+            fieldLabel: 'Date 1',
+            name: 'date_1',
+            itemId:'date_1',
+            maxValue: new Date(),  // limited to the current date or prior
+            margin:10
+        }, {
+            xtype: 'datefield',
+            anchor: '100%',
+            fieldLabel: 'Date 2',
+            name: 'date_2',
+            itemId:'date_2',
+            value: new Date(),  // defaults to today
+            margin:10
+        }]);
+
+        me.down('#selector_box').add({
+            xtype: 'rallybutton',
+            text: 'Go!',
+            // width: 200,
+            margin:10,
+            cls: 'primary',
+            listeners: {
+                click: function(){
+                    var cb = me.down('rallyreleasecombobox');
+                    if ( cb ) {
+                        me.release = cb.getRecord();
+                    }
+                    me._getReleaseObjectIDs();
+                },
+                scope: me
+            }
+        });
+
+    },
+
+    // _getReleaseObjectIDs: function() {
+    //     var deferred = Ext.create('Deft.Deferred');
+    //     var me = this;
+    //     Deft.Promise.all(me._getReleases()).then({
+    //         success: function(records){
+    //             var releases = [];
+    //             _.each(records, function(rec){
+    //                 releases.push(rec.get('ObjectID'));
+    //             });
+    //             me.logger.log('Releases >>',releases);
+
+    //             deferred.resolve(releases);
+    //         },
+    //         scope: me
+    //     });
+    //     return deferred.promise;
+
+    // },
+
+
+    _getReleaseObjectIDs: function() {
+        var me = this;
+        me.logger.log('_getReleaseObjectIDs');
+        Deft.Chain.parallel([
+            me._getReleases
+        ],me).then({
+            scope: me,
+            success: function(results) {
+                me.logger.log('Results:',results);
+
+                var date1 = this.down('#date_1').value;
+                var date2 = this.down('#date_2').value;
+
+                me.release_oids = Ext.Array.map(results[0], function(release) {
+                    return release.get('ObjectID');
+                });
+                
+                Deft.Promise.all([
+                    me._getDataFromSnapShotStore(date1),
+                    me._getDataFromSnapShotStore(date2)
+                ],me).then({
+                    scope: me,
+                    success: function(results){
+                        var object_ids = _.union(results[0],results[1]);
+                        me.logger.log(object_ids);
+                        me._getDataFromObjectIds(results[0],results[1],object_ids).then({
+                            success: function(records) {
+                                me._displayGrid(records);
+                            },
+                            failure: function(error) {
+                                me.logger.log('Failed');
+                                Rally.ui.notify.Notifier.showWarning({message: error});
+                            }
+                        });
+                    },
+                    failure: function(msg) {
+                        Ext.Msg.alert('Failed',msg);
+                    }
+                });
+            },
+            failure: function(msg) {
+                Ext.Msg.alert('Problem Loading Timebox data', msg);
+            }
+        });
+    },
+
+    _getReleases:function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var me = this;
+        this.logger.log("Starting load:");
+        
+        var filters = Ext.create('Rally.data.wsapi.Filter',{
+            property: 'Name',
+            operator: '=',
+            value: this.release.get('Name')
+        });
+
+
+        Ext.create('Rally.data.wsapi.Store', {
+            model: 'Release',
+            fetch: ['ObjectID'],
+            filters: filters
+        }).load({
+            callback : function(records, operation, successful) {
+                if (successful){
+                    console.log('records',records,'operation',operation,'successful',successful);
+                    deferred.resolve(records);
+                } else {
+                    me.logger.log("Failed: ", operation);
+                    deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+
+
+    
+    _getDataFromSnapShotStore:function(date){
+        var deferred = Ext.create('Deft.Deferred');
+
+        var artifact_type = this.down('#artifact_type').value;
+
+        var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', {
+            "context": this.getContext().getDataContext(),
+            "fetch": ["ScheduleState", "_User"],
+            "hydrate": ["ScheduleState"],
+            "find": {
+                    "_TypeHierarchy": artifact_type,
+                    "Children": null,
+                    "Release": { '$in': this.release_oids },
+                    "__At": date,
+                },
+            "sort": { "_ValidFrom": -1 }
+        });
+
+        snapshotStore.load({
+            callback: function(records, operation) {
+               this.logger.log('Lookback Data>>>',records,operation);
+               var object_ids = [];
+                Ext.Array.each(records,function(rec){
+                    object_ids.push(rec.get('ObjectID'));
+                });
+                deferred.resolve(object_ids);
+            },
+            scope:this
+        });
+    
+        return deferred;
+    },
+
+    _getDataFromObjectIds:function(date1_ids,date2_ids,object_ids){
+        var me = this;
+        var deferred = Ext.create('Deft.Deferred');
+        me.logger.log('_getDataFromObjectIds>>',date1_ids,date2_ids,object_ids);
+
+        if(0 == object_ids.length){
+            deferred.reject('No Records found!!');
+        }else{
+            var model_name = me.down('#artifact_type').value;
+            var model_filters = [];
+            Ext.Array.each(object_ids,function(id){
+                model_filters.push({property:'ObjectID',value:id});
+            });
+
+            model_filters = Rally.data.wsapi.Filter.or(model_filters);
+
+            Ext.create('Rally.data.wsapi.Store', {
+                model: model_name,
+                filters: model_filters
+            }).load({
+                callback : function(records, operation, successful) {
+                    if (successful){
+
+                        //Using Extended model
+                        // var with_date_flags =  Ext.Array.map(records, function(rec){
+                        //     var with_date_flag = Ext.create('TSDateFlags',{
+                        //         'Date1': 'Y',
+                        //         'Date2': 'N',
+                        //         'HierarchicalRequirement': rec
+                        //     });
+                        //     return with_date_flag;
+                        // });
+              
+                        //Creating custom store
+                        var model_with_dates = [];
+                        Ext.Array.each(records,function(rec){
+                            
+                            var model_with_date = {
+                                UserStory: rec,
+                                Date1: date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N',
+                                Date2: date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N'
+                            }
+                            model_with_dates.push(model_with_date);
+                        });
+
+                        deferred.resolve(model_with_dates);
+                
+                        //deferred.resolve(this);
+                    } else {
+                        me.logger.log("Failed: ", operation);
+                        deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
+                    }
+                }
+            });
+        }
+
+        
+        return deferred.promise;
+
+    },
+
+    _loadAStoreWithAPromise: function(model_name, model_fields,model_filters){
+        var deferred = Ext.create('Deft.Deferred');
+        var me = this;
+        this.logger.log("Starting load:",model_name,model_fields);
+          
+        Ext.create('Rally.data.wsapi.Store', {
+            model: model_name,
+            fetch: ['ObjectID','FormattedID','Name'],
+            filters: model_filters
+        }).load({
+            callback : function(records, operation, successful) {
+                if (successful){
+                    deferred.resolve(this);
+                } else {
+                    me.logger.log("Failed: ", operation);
+                    deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+    
+    _displayGrid: function(records){
+        this.down('#display_box').removeAll();
+        var store = Ext.create('Rally.data.custom.Store', {
+            data: records,
+            // ,
+            // sorters: [{property:'FomattedID', direction:'DESC'}]
+        });
+        this.logger.log('_displayGrid>>',store);
+
+        this.down('#display_box').add({
+            xtype: 'rallygrid',
+            store: store,
+            enableEditing: false,
+            showRowActionsColumn: false,            
+            columnCfgs: this._getColumns(),
+            width: this.getWidth()
+            // ,
+            // columnCfgs: [
+            //  'UserStory.FormattedID',
+            //  'UserStory.Name',
+            //  'Date1',
+            //  'Date2'
+            //  // ,
+            //  // 'ObjectID','FormattedID','Name'
+            // ]
+        });
+    },
+
+    // _displayGrid: function(records){
+    //     this.down('#display_box').removeAll();
+    //     var store = Ext.create('Rally.data.wsapi.Store', {
+    //         data: records,
+    //         model: 'TSDateFlags'
+    //         // ,
+    //         // sorters: [{property:'WeekStartDate', direction:'DESC'}]
+    //     });
+    //     this.logger.log('_displayGrid>>',store);
+    //     var columns = this._getColumns();
+    //     this.down('#display_box').add({
+    //                     xtype: 'rallygrid',
+    //                     columnCfgs: columns,
+    //                     context: this.getContext(),
+    //                     enableEditing: false,
+    //                     showRowActionsColumn: false,
+    //                     store:store
+    //                 });
+    // },
+
+    _getColumns: function() {
+        var columns = [];
+        
+        columns.push({dataIndex:'UserStory',text:'FormattedID', flex: 1, renderer: function(UserStory) { return UserStory.get('FormattedID'); }});
+        columns.push({dataIndex:'UserStory',text:'Name', flex: 2, renderer: function(UserStory) { return UserStory.get('Name'); }});        
+        columns.push({dataIndex:'UserStory',text:'Plan Estimate', renderer: function(UserStory) { return UserStory.get('PlanEstimate'); }});    
+        columns.push({dataIndex:'Date1',text:'Date1', flex: 1 });
+        columns.push({dataIndex:'Date2',text:'Date2', flex: 1 });
+       
+        return columns;
+    },
+
+    getOptions: function() {
+        return [
+            {
+                text: 'About...',
+                handler: this._launchInfo,
+                scope: this
+            }
+        ];
+    },
+    
+    _launchInfo: function() {
+        if ( this.about_dialog ) { this.about_dialog.destroy(); }
+        this.about_dialog = Ext.create('Rally.technicalservices.InfoLink',{});
+    },
+    
+    isExternal: function(){
+        return typeof(this.getAppId()) == 'undefined';
+    },
+    
+    //onSettingsUpdate:  Override
+    onSettingsUpdate: function (settings){
+        this.logger.log('onSettingsUpdate',settings);
+        // Ext.apply(this, settings);
+        this.launch();
+    }
+});
+
+            
+               Rally.launchApp('QCSApp', {
+                   name: 'Quarter Commit Snapshot'
+               });
+        });
+    </script>
+    
+    <style type="text/css">
+
+.app {
+}
+.tsinfolink {
+    position:absolute;
+    right:0px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    text-align: center;
+    color: white;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+    margin-top: 25px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+    </style>
+
+</head>
+<body></body>
+</html>
