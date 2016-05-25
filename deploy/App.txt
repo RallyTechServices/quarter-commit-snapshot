@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Tue May 24 2016 10:17:03 GMT-0400 (EDT) -->
+    <!--  Build Date: Wed May 25 2016 15:09:10 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue May 24 2016 10:17:03 GMT-0400 (EDT)";
-        var CHECKSUM = 6489352602;
+        var APP_BUILD_DATE = "Wed May 25 2016 15:09:10 GMT-0400 (EDT)";
+        var CHECKSUM = 7284165985;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -259,6 +259,14 @@ Ext.define("QCSApp", {
             itemId:'date_2',
             value: new Date(),  // defaults to today
             margin:10
+        },{
+            name: 'showChanged',
+            itemId: 'showChanged',
+            xtype: 'rallycheckboxfield',
+            boxLabelAlign: 'after',
+            fieldLabel: '',
+            margin:10,
+            boxLabel: 'Show changed'
         }]);
 
         me.down('#selector_box').add({
@@ -281,26 +289,6 @@ Ext.define("QCSApp", {
 
     },
 
-    // _getReleaseObjectIDs: function() {
-    //     var deferred = Ext.create('Deft.Deferred');
-    //     var me = this;
-    //     Deft.Promise.all(me._getReleases()).then({
-    //         success: function(records){
-    //             var releases = [];
-    //             _.each(records, function(rec){
-    //                 releases.push(rec.get('ObjectID'));
-    //             });
-    //             me.logger.log('Releases >>',releases);
-
-    //             deferred.resolve(releases);
-    //         },
-    //         scope: me
-    //     });
-    //     return deferred.promise;
-
-    // },
-
-
     _getReleaseObjectIDs: function() {
         var me = this;
         me.logger.log('_getReleaseObjectIDs');
@@ -311,8 +299,9 @@ Ext.define("QCSApp", {
             success: function(results) {
                 me.logger.log('Results:',results);
 
-                var date1 = this.down('#date_1').value;
-                var date2 = this.down('#date_2').value;
+                var date1 = me.down('#date_1').value;
+                var date2 = me.down('#date_2').value;
+                me.logger.log(date1,date2);
 
                 me.release_oids = Ext.Array.map(results[0], function(release) {
                     return release.get('ObjectID');
@@ -386,8 +375,7 @@ Ext.define("QCSApp", {
 
         var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', {
             "context": this.getContext().getDataContext(),
-            "fetch": ["ScheduleState", "_User"],
-            "hydrate": ["ScheduleState"],
+            "fetch": [ "PlanEstimate"],
             "find": {
                     "_TypeHierarchy": artifact_type,
                     "Children": null,
@@ -402,7 +390,7 @@ Ext.define("QCSApp", {
                this.logger.log('Lookback Data>>>',records,operation);
                var object_ids = [];
                 Ext.Array.each(records,function(rec){
-                    object_ids.push(rec.get('ObjectID'));
+                    object_ids.push({'ObjectID':rec.get('ObjectID'),'PlanEstimate':rec.get('PlanEstimate')});
                 });
                 deferred.resolve(object_ids);
             },
@@ -416,14 +404,14 @@ Ext.define("QCSApp", {
         var me = this;
         var deferred = Ext.create('Deft.Deferred');
         me.logger.log('_getDataFromObjectIds>>',date1_ids,date2_ids,object_ids);
-
+        var showChanged = me.down('#showChanged').value;
         if(0 == object_ids.length){
             deferred.reject('No Records found!!');
         }else{
             var model_name = me.down('#artifact_type').value;
             var model_filters = [];
             Ext.Array.each(object_ids,function(id){
-                model_filters.push({property:'ObjectID',value:id});
+                model_filters.push({property:'ObjectID',value:id.ObjectID});
             });
 
             model_filters = Rally.data.wsapi.Filter.or(model_filters);
@@ -447,14 +435,40 @@ Ext.define("QCSApp", {
               
                         //Creating custom store
                         var model_with_dates = [];
+                        var isInDate1,isInDate2,planEstimate1,planEstimate2;
                         Ext.Array.each(records,function(rec){
-                            
-                            var model_with_date = {
-                                UserStory: rec,
-                                Date1: date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N',
-                                Date2: date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N'
+                            // isInDate1 = date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
+                            // isInDate2 = date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
+                            var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
+                            var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
+
+                            isInDate1 = isInDate1Obj ? 'Y' : 'N';
+                            isInDate2 = isInDate2Obj ? 'Y' : 'N';
+                            planEstimate1 = isInDate1Obj ? isInDate1Obj.PlanEstimate : 0;
+                            planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;
+
+                            if(!showChanged){
+                                var model_with_date = {
+                                    UserStory: rec,
+                                    Date1: isInDate1,
+                                    Date2: isInDate2,
+                                    PlanEstimate1: planEstimate1,
+                                    PlanEstimate2: planEstimate2
+
+                                }
+                                model_with_dates.push(model_with_date);
+                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+                                var model_with_date = {
+                                    UserStory: rec,
+                                    Date1: isInDate1,
+                                    Date2: isInDate2,
+                                    PlanEstimate1: planEstimate1,
+                                    PlanEstimate2: planEstimate2
+                                }
+                                model_with_dates.push(model_with_date);
                             }
-                            model_with_dates.push(model_with_date);
+
+                            
                         });
 
                         deferred.resolve(model_with_dates);
@@ -548,9 +562,11 @@ Ext.define("QCSApp", {
         
         columns.push({dataIndex:'UserStory',text:'FormattedID', flex: 1, renderer: function(UserStory) { return UserStory.get('FormattedID'); }});
         columns.push({dataIndex:'UserStory',text:'Name', flex: 2, renderer: function(UserStory) { return UserStory.get('Name'); }});        
-        columns.push({dataIndex:'UserStory',text:'Plan Estimate', renderer: function(UserStory) { return UserStory.get('PlanEstimate'); }});    
-        columns.push({dataIndex:'Date1',text:'Date1', flex: 1 });
-        columns.push({dataIndex:'Date2',text:'Date2', flex: 1 });
+        columns.push({dataIndex:'UserStory',text:'Current Plan Estimate', renderer: function(UserStory) { return UserStory.get('PlanEstimate'); }});    
+        columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
+        columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
+        columns.push({dataIndex:'Date1',text:'In Date 1?', flex: 1 });
+        columns.push({dataIndex:'Date2',text:'In Date 2?', flex: 1 });
        
         return columns;
     },
