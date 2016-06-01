@@ -11,7 +11,46 @@ Ext.define("QCSApp", {
     integrationHeaders : {
         name : "QCSApp"
     },
-                        
+    
+    config: {
+        defaultSettings: {
+            columnNames: ['FormattedID','Name']
+        }
+    },
+
+    _getAlwaysSelectedFields: function() {
+        var columns = this.getSetting('columnNames') ;
+                
+        if ( Ext.isEmpty(columns) ) {
+            return [];
+        }
+        
+        if ( Ext.isString(columns) ) {
+            return columns.split(',');
+        }
+        
+        columns = Ext.Array.filter( columns, function(column){
+            return ( column != 'FormattedID' );
+        });
+        
+        return Ext.Array.unique( columns );
+    },
+
+    getSettingsFields: function() {
+        var me = this;
+        return [{
+            xtype: 'rallyfieldpicker',
+            name: 'columnNames',
+            autoExpand: true,
+            modelTypes: ['HierarchicalRequirement','PortfolioItem/Feature'],
+            alwaysSelectedValues: ['FormattedID','Name'],
+            handlesEvents: {
+                typeselected: function(cb){
+                    this.refreshWithNewModelTypes([cb]);
+                }
+            }
+        }];
+    },
     launch: function() {
         var me = this;
         me._addSelector();
@@ -27,10 +66,32 @@ Ext.define("QCSApp", {
         me.down('#selector_box').add(
         [{
             xtype: 'rallyreleasecombobox',
-            margin:10
+            margin:10,
+            itemId:'selected_release',
+            listeners:{
+                ready:function(rrcb){
+                    // Add 3 weeks to date 1.
+                    newDate1 = new Date(rrcb.getRecord().get('ReleaseStartDate'));
+                    newDate1.setDate(newDate1.getDate()+21);
+                    me.down('#date_1').setValue(newDate1);
+                },
+                select:function(rrcb){
+                    // Add 3 weeks to date 1.
+                    newDate1 = new Date(rrcb.getRecord().get('ReleaseStartDate'));
+                    newDate1.setDate(newDate1.getDate()+21);
+                    me.down('#date_1').setValue(newDate1);                
+                },
+                change:function(rrcb){
+                    // Add 3 weeks to date 1.
+                    newDate1 = new Date(rrcb.getRecord().get('ReleaseStartDate'));
+                    newDate1.setDate(newDate1.getDate()+21);
+                    me.down('#date_1').setValue(newDate1);                
+                }                
+            }
+        }]);
 
-        },
-        {
+        me.down('#selector_box').add(
+        [{
             name: 'type',
             xtype: 'rallycombobox',
             itemId:'artifact_type',
@@ -164,7 +225,6 @@ Ext.define("QCSApp", {
         }).load({
             callback : function(records, operation, successful) {
                 if (successful){
-                    console.log('records',records,'operation',operation,'successful',successful);
                     deferred.resolve(records);
                 } else {
                     me.logger.log("Failed: ", operation);
@@ -227,27 +287,31 @@ Ext.define("QCSApp", {
 
             Ext.create('Rally.data.wsapi.Store', {
                 model: model_name,
-                filters: model_filters
+                filters: model_filters,
+                fetch:me._getFetchFields()
             }).load({
                 callback : function(records, operation, successful) {
                     if (successful){
 
                         //Using Extended model
-                        // var with_date_flags =  Ext.Array.map(records, function(rec){
-                        //     var with_date_flag = Ext.create('TSDateFlags',{
-                        //         'Date1': 'Y',
-                        //         'Date2': 'N',
-                        //         'HierarchicalRequirement': rec
-                        //     });
-                        //     return with_date_flag;
-                        // });
-              
-                        //Creating custom store
+                        var isInDate1,isInDate2,planEstimate1,planEstimate2;     
                         var model_with_dates = [];
-                        var isInDate1,isInDate2,planEstimate1,planEstimate2;
-                        Ext.Array.each(records,function(rec){
-                            // isInDate1 = date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
-                            // isInDate2 = date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
+
+                        Ext.Array.each(records, function(rec){
+
+                            var hierarchy = '';
+                            if(rec.get('_type') == "hierarchicalrequirement"){
+                                var feature = rec.get('Feature');
+                                hierarchy =  feature ? feature.FormattedID + ' : ' + feature.Name : '';
+                                hierarchy += feature && feature.Parent ? '<br/>'+ feature.Parent.FormattedID + ' : ' + feature.Parent.Name:'';
+                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ feature.Parent.Parent.FormattedID + ' : ' + feature.Parent.Parent.Name:'';
+                            }else{
+                                var parent = rec.get('Parent');
+                                hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
+                                hierarchy += parent && parent.Parent ? '<br/>'+ parent.Parent.FormattedID + ' : ' + parent.Parent.Name:'';
+                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ parent.Parent.Parent.FormattedID + ' : ' + parent.Parent.Parent.Name:'';
+                            }
+
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
                             var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
 
@@ -257,30 +321,69 @@ Ext.define("QCSApp", {
                             planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;
 
                             if(!showChanged){
-                                var model_with_date = {
-                                    UserStory: rec,
+                                var with_date_flag = Ext.create('TSDateFlags',{
                                     Date1: isInDate1,
                                     Date2: isInDate2,
                                     PlanEstimate1: planEstimate1,
-                                    PlanEstimate2: planEstimate2
-
-                                }
-                                model_with_dates.push(model_with_date);
+                                    PlanEstimate2: planEstimate2,
+                                    ArtifactHierarchy: hierarchy,                                    
+                                    'SelectedModel': rec
+                                });
+                                model_with_dates.push(with_date_flag);
                             }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
-                                var model_with_date = {
-                                    UserStory: rec,
+                                var with_date_flag = Ext.create('TSDateFlags',{
                                     Date1: isInDate1,
                                     Date2: isInDate2,
                                     PlanEstimate1: planEstimate1,
-                                    PlanEstimate2: planEstimate2
-                                }
-                                model_with_dates.push(model_with_date);
+                                    PlanEstimate2: planEstimate2,     
+                                    ArtifactHierarchy: hierarchy,                                    
+                                    'SelectedModel': rec
+                                });
+                                model_with_dates.push(with_date_flag);
                             }
-
-                            
                         });
 
-                        deferred.resolve(model_with_dates);
+                        deferred.resolve(model_with_dates);              
+
+                        //Creating custom store
+                        // var model_with_dates = [];
+                        // var isInDate1,isInDate2,planEstimate1,planEstimate2;
+                        // Ext.Array.each(records,function(rec){
+                        //     // isInDate1 = date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
+                        //     // isInDate2 = date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
+                        //     var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
+                        //     var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
+
+                        //     isInDate1 = isInDate1Obj ? 'Y' : 'N';
+                        //     isInDate2 = isInDate2Obj ? 'Y' : 'N';
+                        //     planEstimate1 = isInDate1Obj ? isInDate1Obj.PlanEstimate : 0;
+                        //     planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;
+
+                        //     if(!showChanged){
+                        //         var model_with_date = {
+                        //             UserStory: rec,
+                        //             Date1: isInDate1,
+                        //             Date2: isInDate2,
+                        //             PlanEstimate1: planEstimate1,
+                        //             PlanEstimate2: planEstimate2
+
+                        //         }
+                        //         model_with_dates.push(model_with_date);
+                        //     }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+                        //         var model_with_date = {
+                        //             UserStory: rec,
+                        //             Date1: isInDate1,
+                        //             Date2: isInDate2,
+                        //             PlanEstimate1: planEstimate1,
+                        //             PlanEstimate2: planEstimate2
+                        //         }
+                        //         model_with_dates.push(model_with_date);
+                        //     }
+
+                            
+                        // });
+
+                        // deferred.resolve(model_with_dates);
                 
                         //deferred.resolve(this);
                     } else {
@@ -294,6 +397,12 @@ Ext.define("QCSApp", {
         
         return deferred.promise;
 
+    },
+
+    _getFetchFields: function(){
+        var fetchFields = [];
+        fetchFields = this._getAlwaysSelectedFields();
+        fetchFields.push('Parent','Feature','FormattedID','Name');
     },
 
     _loadAStoreWithAPromise: function(model_name, model_fields,model_filters){
@@ -320,63 +429,125 @@ Ext.define("QCSApp", {
     
     _displayGrid: function(records){
         this.down('#display_box').removeAll();
+        //Custom store
         var store = Ext.create('Rally.data.custom.Store', {
             data: records,
             // ,
             // sorters: [{property:'FomattedID', direction:'DESC'}]
         });
+
+        // //wsapi store
+        // var store = Ext.create('Rally.data.wsapi.Store',{
+        //     data: records,
+        //     model: 'TSDateFlags'
+        // });
+
+        // //Getting error - "Factory is not registered for type: TSDateFlags"
+        // Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
+        //     autoLoad: false,
+        //     context: this.getContext().getDataContext(),
+        //     enableHierarchy: false,
+        //     models: ['HierarchicalRequirement'],
+        //     data: records
+        // }).then({
+        //     success: this._addGridBoard,
+        //     failure: function(msg){
+        //         console.log(msg);
+        //     },
+        //     scope: this
+        // });
+
+
+
         this.logger.log('_displayGrid>>',store);
 
         this.down('#display_box').add({
             xtype: 'rallygrid',
             store: store,
-            enableEditing: false,
-            showRowActionsColumn: false,            
+            showRowActionsColumn: false,
+            editable: false,            
             columnCfgs: this._getColumns(),
             width: this.getWidth()
-            // ,
-            // columnCfgs: [
-            //  'UserStory.FormattedID',
-            //  'UserStory.Name',
-            //  'Date1',
-            //  'Date2'
-            //  // ,
-            //  // 'ObjectID','FormattedID','Name'
-            // ]
         });
+
+         this.down('#selector_box').add({
+            xtype:'rallybutton',
+            itemId:'export_button',
+            text: 'Download CSV',
+            margin:10,
+
+            disabled: false,
+            iconAlign: 'right',
+            listeners: {
+                scope: this,
+                click: function() {
+                    this._export();
+                }
+            },
+            margin: '10',
+            scope: this
+        });
+
+
+
     },
 
-    // _displayGrid: function(records){
-    //     this.down('#display_box').removeAll();
-    //     var store = Ext.create('Rally.data.wsapi.Store', {
-    //         data: records,
-    //         model: 'TSDateFlags'
-    //         // ,
-    //         // sorters: [{property:'WeekStartDate', direction:'DESC'}]
-    //     });
-    //     this.logger.log('_displayGrid>>',store);
-    //     var columns = this._getColumns();
+    _export: function(){
+        var grid = this.down('rallygrid');
+        var me = this;
+
+        if ( !grid ) { return; }
+        
+        this.logger.log('_export',grid);
+
+        var filename = Ext.String.format('user-permissions.csv');
+
+        this.setLoading("Generating CSV");
+        Deft.Chain.sequence([
+            function() { return Rally.technicalservices.FileUtilities._getCSVFromCustomBackedGrid(grid) } 
+        ]).then({
+            scope: this,
+            success: function(csv){
+                if (csv && csv.length > 0){
+                    Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
+                } else {
+                    Rally.ui.notify.Notifier.showWarning({message: 'No data to export'});
+                }
+                
+            }
+        }).always(function() { me.setLoading(false); });
+    },
+
+    // _addGridBoard:function(store){
+    //     console.log('_addGridBoard>>',store);
     //     this.down('#display_box').add({
-    //                     xtype: 'rallygrid',
-    //                     columnCfgs: columns,
-    //                     context: this.getContext(),
-    //                     enableEditing: false,
-    //                     showRowActionsColumn: false,
-    //                     store:store
-    //                 });
+    //         xtype: 'rallygridboard',
+    //         context: this.getContext(),
+    //         modelNames: ['TSDateFlags'],
+    //         toggleState: 'grid',
+    //         gridConfig: {
+    //             store: store
+    //             ,
+    //             columnCfgs: this._getAlwaysSelectedFields()
+    //         }
+    //     });
     // },
 
     _getColumns: function() {
         var columns = [];
-        
-        columns.push({dataIndex:'UserStory',text:'FormattedID', flex: 1, renderer: function(UserStory) { return UserStory.get('FormattedID'); }});
-        columns.push({dataIndex:'UserStory',text:'Name', flex: 2, renderer: function(UserStory) { return UserStory.get('Name'); }});        
-        columns.push({dataIndex:'UserStory',text:'Current Plan Estimate', renderer: function(UserStory) { return UserStory.get('PlanEstimate'); }});    
+        Ext.Array.each(this._getAlwaysSelectedFields(),function(col){
+            if(col == 'FormattedID'){
+                columns.push({dataIndex:'SelectedModel',text:col, flex: 1, tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate'), renderer: function(model) { return model.get(col); }}); 
+            }else{
+                columns.push({dataIndex:'SelectedModel',text:col, flex: 1,  renderer: function(model) { return model.get(col); }}); 
+            }
+            
+        })
+        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 1 });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
         columns.push({dataIndex:'Date1',text:'In Date 1?', flex: 1 });
         columns.push({dataIndex:'Date2',text:'In Date 2?', flex: 1 });
-       
         return columns;
     },
 
