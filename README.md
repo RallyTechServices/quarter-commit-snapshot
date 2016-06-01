@@ -8,7 +8,6 @@ This application lets the user query a list of User Stories or Features committe
 - Download the grid to CSV.
 - Lists higher level PIs as a column.
 - Add/remove columns as needed.
-- 
 
 ![ScreenShot](images/qcs1.png)
 
