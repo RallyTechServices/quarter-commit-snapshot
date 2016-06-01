@@ -1,5 +1,40 @@
 #Quarter Commit Snapshot
 
+This application lets the user query a list of User Stories or Features committed to a release based on two different dates. Following are the list of functions.
+- Lets the user select a Release and Type (User Story or Feature).
+- Lists the planned estimate for both the dates given.
+- Shows if the User Story was part of the User Story or Feature (In Date1? / In Date2?).
+- Show changed option lets the user view the artifacts that has changed. 
+- Download the grid to CSV.
+- Lists higher level PIs as a column.
+- Add/remove columns as needed.
+- 
+
+![ScreenShot](images/qcs1.png)
+
+You will be able to add /remove grid columns on App Settings.
+
+![ScreenShot](images/qcs2.png)
+
+####Steps to install the Application
+ 1. On your dashboard, click on the gear to add an app.
+ 2. Choose "Custom HTML" from the App Catalog. Add the app.
+ 3. Paste the code to HTML text area from the link - https://raw.githubusercontent.com/RallyTechServices/quarter-commit-snapshot/master/deploy/App.txt
+ 4. Click Save.
+
+
+####Steps to get started:
+ 1. Once the application is installed, Click on the gear on top right corner of the app to open App Settings and choose the columns for the grid. 
+ 2. Save app settings.
+ 3. Select a release.
+ 4. Select User Story or Feature
+ 5. Select Date 1 (default value would be 3 weeks from Release Start Date).
+ 6. Select Date 2 (default value is current date).
+ 7. Click on Show changed if needed. 
+ 8. Click on "GO!"" to display the grid. 
+ 9. Click on "Download CSV" button to download the grid to a csv file
+
+
 ## Development Notes
 
 ### First Load
