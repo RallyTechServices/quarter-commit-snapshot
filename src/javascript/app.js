@@ -177,6 +177,8 @@ Ext.define("QCSApp", {
                     return release.get('ObjectID');
                 });
                 
+                me.setLoading(true);
+
                 Deft.Promise.all([
                     me._getDataFromSnapShotStore(date1),
                     me._getDataFromSnapShotStore(date2)
@@ -187,10 +189,12 @@ Ext.define("QCSApp", {
                         me.logger.log(object_ids);
                         me._getDataFromObjectIds(results[0],results[1],object_ids).then({
                             success: function(records) {
+                                me.setLoading(false);
                                 me._displayGrid(records);
                             },
                             failure: function(error) {
                                 me.logger.log('Failed');
+                                me.setLoading(false);
                                 Rally.ui.notify.Notifier.showWarning({message: error});
                             }
                         });
@@ -250,8 +254,9 @@ Ext.define("QCSApp", {
                     "Children": null,
                     "Release": { '$in': this.release_oids },
                     "__At": date,
-                },
-            "sort": { "_ValidFrom": -1 }
+            },
+            "sort": { "_ValidFrom": -1 },
+            useHttpPost:true
         });
 
         snapshotStore.load({
@@ -288,6 +293,7 @@ Ext.define("QCSApp", {
             Ext.create('Rally.data.wsapi.Store', {
                 model: model_name,
                 filters: model_filters,
+                enablePostGet:true,
                 fetch:me._getFetchFields()
             }).load({
                 callback : function(records, operation, successful) {
@@ -500,7 +506,7 @@ Ext.define("QCSApp", {
         
         this.logger.log('_export',grid);
 
-        var filename = Ext.String.format('user-permissions.csv');
+        var filename = Ext.String.format('quarter-commit-snapshot.csv');
 
         this.setLoading("Generating CSV");
         Deft.Chain.sequence([

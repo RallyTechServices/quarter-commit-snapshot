@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jun 01 2016 18:28:15 GMT-0400 (EDT) -->
+    <!--  Build Date: Thu Jun 02 2016 13:36:51 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jun 01 2016 18:28:15 GMT-0400 (EDT)";
-        var CHECKSUM = 44656184979;
+        var APP_BUILD_DATE = "Thu Jun 02 2016 13:36:51 GMT-0400 (EDT)";
+        var CHECKSUM = 44539822163;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -987,6 +987,8 @@ Ext.define("QCSApp", {
                     return release.get('ObjectID');
                 });
                 
+                me.setLoading(true);
+
                 Deft.Promise.all([
                     me._getDataFromSnapShotStore(date1),
                     me._getDataFromSnapShotStore(date2)
@@ -997,11 +999,12 @@ Ext.define("QCSApp", {
                         me.logger.log(object_ids);
                         me._getDataFromObjectIds(results[0],results[1],object_ids).then({
                             success: function(records) {
-                                console.log('records>>',records);
+                                me.setLoading(false);
                                 me._displayGrid(records);
                             },
                             failure: function(error) {
                                 me.logger.log('Failed');
+                                me.setLoading(false);
                                 Rally.ui.notify.Notifier.showWarning({message: error});
                             }
                         });
@@ -1036,7 +1039,6 @@ Ext.define("QCSApp", {
         }).load({
             callback : function(records, operation, successful) {
                 if (successful){
-                    console.log('records',records,'operation',operation,'successful',successful);
                     deferred.resolve(records);
                 } else {
                     me.logger.log("Failed: ", operation);
@@ -1062,8 +1064,9 @@ Ext.define("QCSApp", {
                     "Children": null,
                     "Release": { '$in': this.release_oids },
                     "__At": date,
-                },
-            "sort": { "_ValidFrom": -1 }
+            },
+            "sort": { "_ValidFrom": -1 },
+            useHttpPost:true
         });
 
         snapshotStore.load({
@@ -1100,6 +1103,7 @@ Ext.define("QCSApp", {
             Ext.create('Rally.data.wsapi.Store', {
                 model: model_name,
                 filters: model_filters,
+                enablePostGet:true,
                 fetch:me._getFetchFields()
             }).load({
                 callback : function(records, operation, successful) {
@@ -1123,8 +1127,6 @@ Ext.define("QCSApp", {
                                 hierarchy += parent && parent.Parent ? '<br/>'+ parent.Parent.FormattedID + ' : ' + parent.Parent.Name:'';
                                 hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ parent.Parent.Parent.FormattedID + ' : ' + parent.Parent.Parent.Name:'';
                             }
-
-                            console.log('hierarchy!!>',hierarchy);
 
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
                             var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
@@ -1289,7 +1291,7 @@ Ext.define("QCSApp", {
             itemId:'export_button',
             text: 'Download CSV',
             margin:10,
-           
+
             disabled: false,
             iconAlign: 'right',
             listeners: {
@@ -1314,7 +1316,7 @@ Ext.define("QCSApp", {
         
         this.logger.log('_export',grid);
 
-        var filename = Ext.String.format('user-permissions.csv');
+        var filename = Ext.String.format('quarter-commit-snapshot.csv');
 
         this.setLoading("Generating CSV");
         Deft.Chain.sequence([
