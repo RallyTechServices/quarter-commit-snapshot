@@ -42,13 +42,8 @@ Ext.define("QCSApp", {
             xtype: 'rallyfieldpicker',
             name: 'columnNames',
             autoExpand: true,
-            modelTypes: ['HierarchicalRequirement','PortfolioItem/Feature'],
-            alwaysSelectedValues: ['FormattedID','Name'],
-            handlesEvents: {
-                typeselected: function(cb){
-                    this.refreshWithNewModelTypes([cb]);
-                }
-            }
+            modelTypes: ['HierarchicalRequirement','PortfolioItem/Feature','Defect'],
+            alwaysSelectedValues: ['FormattedID','Name']
         }];
     },
     launch: function() {
@@ -60,7 +55,8 @@ Ext.define("QCSApp", {
         var me = this;
         var type_filters = Rally.data.wsapi.Filter.or([
                 {property: 'TypePath', value: 'HierarchicalRequirement'},
-                {property: 'TypePath', value: 'PortfolioItem/Feature'}
+                {property: 'TypePath', value: 'PortfolioItem/Feature'},
+                {property: 'TypePath', value: 'Defect'}
             ]);
 
         me.down('#selector_box').add(
@@ -248,7 +244,7 @@ Ext.define("QCSApp", {
 
         var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', {
             "context": this.getContext().getDataContext(),
-            "fetch": [ "PlanEstimate"],
+            "fetch": [ "PlanEstimate","LeafStoryPlanEstimateTotal"],
             "find": {
                     "_TypeHierarchy": artifact_type,
                     "Children": null,
@@ -264,7 +260,7 @@ Ext.define("QCSApp", {
                this.logger.log('Lookback Data>>>',records,operation);
                var object_ids = [];
                 Ext.Array.each(records,function(rec){
-                    object_ids.push({'ObjectID':rec.get('ObjectID'),'PlanEstimate':rec.get('PlanEstimate')});
+                    object_ids.push({'ObjectID':rec.get('ObjectID'),'PlanEstimate':rec.get('PlanEstimate'),'LeafStoryPlanEstimateTotal':rec.get('LeafStoryPlanEstimateTotal')});
                 });
                 deferred.resolve(object_ids);
             },
@@ -323,8 +319,15 @@ Ext.define("QCSApp", {
 
                             isInDate1 = isInDate1Obj ? 'Y' : 'N';
                             isInDate2 = isInDate2Obj ? 'Y' : 'N';
-                            planEstimate1 = isInDate1Obj ? isInDate1Obj.PlanEstimate : 0;
-                            planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;
+
+                            if(model_name=="PortfolioItem/Feature"){
+                                planEstimate1 = isInDate1Obj ? isInDate1Obj.LeafStoryPlanEstimateTotal : 0;
+                                planEstimate2 = isInDate2Obj ? isInDate2Obj.LeafStoryPlanEstimateTotal : 0; 
+                            }else{
+                                planEstimate1 = isInDate1Obj ? isInDate1Obj.PlanEstimate : 0;
+                                planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;                               
+                            }
+
 
                             if(!showChanged){
                                 var with_date_flag = Ext.create('TSDateFlags',{
@@ -351,47 +354,7 @@ Ext.define("QCSApp", {
 
                         deferred.resolve(model_with_dates);              
 
-                        //Creating custom store
-                        // var model_with_dates = [];
-                        // var isInDate1,isInDate2,planEstimate1,planEstimate2;
-                        // Ext.Array.each(records,function(rec){
-                        //     // isInDate1 = date1_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
-                        //     // isInDate2 = date2_ids.indexOf(rec.get('ObjectID')) > -1 ? 'Y' : 'N';
-                        //     var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
-                        //     var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
 
-                        //     isInDate1 = isInDate1Obj ? 'Y' : 'N';
-                        //     isInDate2 = isInDate2Obj ? 'Y' : 'N';
-                        //     planEstimate1 = isInDate1Obj ? isInDate1Obj.PlanEstimate : 0;
-                        //     planEstimate2 = isInDate2Obj ? isInDate2Obj.PlanEstimate : 0;
-
-                        //     if(!showChanged){
-                        //         var model_with_date = {
-                        //             UserStory: rec,
-                        //             Date1: isInDate1,
-                        //             Date2: isInDate2,
-                        //             PlanEstimate1: planEstimate1,
-                        //             PlanEstimate2: planEstimate2
-
-                        //         }
-                        //         model_with_dates.push(model_with_date);
-                        //     }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
-                        //         var model_with_date = {
-                        //             UserStory: rec,
-                        //             Date1: isInDate1,
-                        //             Date2: isInDate2,
-                        //             PlanEstimate1: planEstimate1,
-                        //             PlanEstimate2: planEstimate2
-                        //         }
-                        //         model_with_dates.push(model_with_date);
-                        //     }
-
-                            
-                        // });
-
-                        // deferred.resolve(model_with_dates);
-                
-                        //deferred.resolve(this);
                     } else {
                         me.logger.log("Failed: ", operation);
                         deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
@@ -438,31 +401,7 @@ Ext.define("QCSApp", {
         //Custom store
         var store = Ext.create('Rally.data.custom.Store', {
             data: records,
-            // ,
-            // sorters: [{property:'FomattedID', direction:'DESC'}]
         });
-
-        // //wsapi store
-        // var store = Ext.create('Rally.data.wsapi.Store',{
-        //     data: records,
-        //     model: 'TSDateFlags'
-        // });
-
-        // //Getting error - "Factory is not registered for type: TSDateFlags"
-        // Ext.create('Rally.data.wsapi.TreeStoreBuilder').build({
-        //     autoLoad: false,
-        //     context: this.getContext().getDataContext(),
-        //     enableHierarchy: false,
-        //     models: ['HierarchicalRequirement'],
-        //     data: records
-        // }).then({
-        //     success: this._addGridBoard,
-        //     failure: function(msg){
-        //         console.log(msg);
-        //     },
-        //     scope: this
-        // });
-
 
 
         this.logger.log('_displayGrid>>',store);
@@ -524,20 +463,6 @@ Ext.define("QCSApp", {
         }).always(function() { me.setLoading(false); });
     },
 
-    // _addGridBoard:function(store){
-    //     console.log('_addGridBoard>>',store);
-    //     this.down('#display_box').add({
-    //         xtype: 'rallygridboard',
-    //         context: this.getContext(),
-    //         modelNames: ['TSDateFlags'],
-    //         toggleState: 'grid',
-    //         gridConfig: {
-    //             store: store
-    //             ,
-    //             columnCfgs: this._getAlwaysSelectedFields()
-    //         }
-    //     });
-    // },
 
     _getColumns: function() {
         var columns = [];
@@ -552,8 +477,8 @@ Ext.define("QCSApp", {
         columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 1 });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
-        columns.push({dataIndex:'Date1',text:'In Date 1?', flex: 1 });
-        columns.push({dataIndex:'Date2',text:'In Date 2?', flex: 1 });
+        columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
+        columns.push({dataIndex:'Date2',text:'Date 2 Commit?', flex: 1 });
         return columns;
     },
 
