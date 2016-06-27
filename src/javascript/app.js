@@ -93,7 +93,8 @@ Ext.define("QCSApp", {
             itemId:'artifact_type',
             allowBlank: false,
             autoSelect: false,
-            fieldLabel: 'Type',
+            fieldLabel: 'Type:',
+            labelWidth: 35,
             initialValue: 'UserStory',
             margin:10,
             storeConfig: {
@@ -115,6 +116,7 @@ Ext.define("QCSApp", {
             fieldLabel: 'Date 1',
             name: 'date_1',
             itemId:'date_1',
+            labelWidth: 40,
             maxValue: new Date(),  // limited to the current date or prior
             margin:10
         }, {
@@ -123,6 +125,7 @@ Ext.define("QCSApp", {
             fieldLabel: 'Date 2',
             name: 'date_2',
             itemId:'date_2',
+            labelWidth: 40,
             value: new Date(),  // defaults to today
             margin:10
         },{
