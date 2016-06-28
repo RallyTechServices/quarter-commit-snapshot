@@ -342,7 +342,8 @@ Ext.define("QCSApp", {
                                     'SelectedModel': rec
                                 });
                                 model_with_dates.push(with_date_flag);
-                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+//                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+                            }else if(isInDate1 != isInDate2){
                                 var with_date_flag = Ext.create('TSDateFlags',{
                                     Date1: isInDate1,
                                     Date2: isInDate2,
