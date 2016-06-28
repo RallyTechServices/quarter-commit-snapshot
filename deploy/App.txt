@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Jun 27 2016 15:41:00 GMT-0700 (PDT) -->
+    <!--  Build Date: Mon Jun 27 2016 20:26:32 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Jun 27 2016 15:41:00 GMT-0700 (PDT)";
-        var CHECKSUM = 40241597439;
+        var APP_BUILD_DATE = "Mon Jun 27 2016 20:26:32 GMT-0700 (PDT)";
+        var CHECKSUM = 40322162314;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -426,7 +426,7 @@ Ext.define('TSDateFlags',{
         { name: 'PlanEstimate1', type:'number'},
         { name: 'PlanEstimate2', type:'number'},
         { name: 'SelectedModel', type: 'object'},
-        { name: 'ArtifactHierarchy', type: 'string' },
+        { name: 'ArtifactHierarchy', type: 'string' }
     ],
     isSelectable: function() {
         return true;
@@ -1152,7 +1152,8 @@ Ext.define("QCSApp", {
                                     'SelectedModel': rec
                                 });
                                 model_with_dates.push(with_date_flag);
-                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+//                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
+                            }else if(isInDate1 != isInDate2){
                                 var with_date_flag = Ext.create('TSDateFlags',{
                                     Date1: isInDate1,
                                     Date2: isInDate2,
