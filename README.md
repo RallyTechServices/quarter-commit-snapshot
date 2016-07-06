@@ -4,7 +4,7 @@ This application lets the user query a list of User Stories or Features committe
 - Lets the user select a Release and Type (User Story or Feature).
 - Lists the planned estimate for both the dates given.
 - Shows if the User Story was part of the User Story or Feature (In Date1? / In Date2?).
-- Show changed option lets the user view the artifacts that has changed. 
+- Show changed option lets the user view the artifacts that has changed (that is was committed on one date but not the other). 
 - Download the grid to CSV.
 - Lists higher level PIs as a column.
 - Add/remove columns as needed.
