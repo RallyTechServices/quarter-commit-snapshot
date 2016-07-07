@@ -95,7 +95,7 @@ Ext.define("QCSApp", {
             autoSelect: false,
             fieldLabel: 'Type:',
             labelWidth: 35,
-            initialValue: 'UserStory',
+            value: 'PortfolioItem/Feature',
             margin:10,
             storeConfig: {
                 model: Ext.identityFn('TypeDefinition'),
@@ -135,7 +135,8 @@ Ext.define("QCSApp", {
             boxLabelAlign: 'after',
             fieldLabel: '',
             margin:10,
-            boxLabel: 'Show changed'
+            boxLabel: 'Show changed',
+            checked: true
         }]);
 
         me.down('#selector_box').add({
@@ -472,9 +473,28 @@ Ext.define("QCSApp", {
         var columns = [];
         Ext.Array.each(this._getAlwaysSelectedFields(),function(col){
             if(col == 'FormattedID'){
-                columns.push({dataIndex:'SelectedModel',text:col, flex: 1, tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate'), renderer: function(model) { return model.get(col); }}); 
+                columns.push({dataIndex:'SelectedModel',
+                                text:col, flex: 1, 
+                                renderer: function(model) { 
+                                        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(model.data);
+                                },
+                                exportRenderer: function(model){
+                                    return model.get(col); 
+                                }
+                            }); 
             }else{
-                columns.push({dataIndex:'SelectedModel',text:col, flex: 1,  renderer: function(model) { return model.get(col); }}); 
+                columns.push({dataIndex:'SelectedModel',
+                              text:col, 
+                              flex: 1,  
+                              renderer: function(model) { 
+                                if ( model.get(col) && typeof(model.get(col)) === "object" ) {
+                                    return model.get(col)._refObjectName; 
+                                }else{
+                                    return model.get(col);
+                                }
+                              }
+                            }
+                            ); 
             }
             
         })
