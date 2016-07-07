@@ -308,18 +308,19 @@ Ext.define("QCSApp", {
                             var hierarchy = '';
                             if(rec.get('_type') == "hierarchicalrequirement"){
                                 var feature = rec.get('Feature');
-                                hierarchy =  feature ? feature.FormattedID + ' : ' + feature.Name : '';
-                                hierarchy += feature && feature.Parent ? '<br/>'+ feature.Parent.FormattedID + ' : ' + feature.Parent.Name:'';
-                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ feature.Parent.Parent.FormattedID + ' : ' + feature.Parent.Parent.Name:'';
+                                hierarchy =  feature ? me._getFormattedIdByObject(feature) + ' : ' + feature.Name : '';
+                                hierarchy += feature && feature.Parent ? '<br/>'+ me._getFormattedIdByObject(feature.Parent) + ' : ' + feature.Parent.Name:'';
+                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(feature.Parent.Parent) + ' : ' + feature.Parent.Parent.Name:'';
                             }else{
                                 var parent = rec.get('Parent');
-                                hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
-                                hierarchy += parent && parent.Parent ? '<br/>'+ parent.Parent.FormattedID + ' : ' + parent.Parent.Name:'';
-                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ parent.Parent.Parent.FormattedID + ' : ' + parent.Parent.Parent.Name:'';
+                                //hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
+                                hierarchy =  parent ? me._getFormattedIdByObject(parent) + ' : ' + parent.Name : '';
+                                hierarchy += parent && parent.Parent ? '<br/>'+ me._getFormattedIdByObject(parent.Parent) + ' : ' + parent.Parent.Name:'';
+                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(parent.Parent.Parent) + ' : ' + parent.Parent.Parent.Name:'';
                             }
 
-                            var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
-                            var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
+                            var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
+                            var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')});
 
                             isInDate1 = isInDate1Obj ? 'Y' : 'N';
                             isInDate2 = isInDate2Obj ? 'Y' : 'N';
@@ -371,6 +372,10 @@ Ext.define("QCSApp", {
         
         return deferred.promise;
 
+    },
+
+    _getFormattedIdByObject: function(obj){
+        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(obj);
     },
 
     _getFetchFields: function(){
@@ -498,7 +503,7 @@ Ext.define("QCSApp", {
             }
             
         })
-        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 1 });
+        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2 });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
         columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });

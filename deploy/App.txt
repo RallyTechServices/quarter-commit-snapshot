@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Jul 07 2016 12:03:10 GMT-0400 (EDT) -->
+    <!--  Build Date: Thu Jul 07 2016 12:42:13 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Jul 07 2016 12:03:10 GMT-0400 (EDT)";
-        var CHECKSUM = 40832881903;
+        var APP_BUILD_DATE = "Thu Jul 07 2016 12:42:13 GMT-0400 (EDT)";
+        var CHECKSUM = 41561665429;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -676,6 +676,9 @@ Ext.define('Rally.technicalservices.FileUtilities', {
             callback: function (records) {
                 var csv = [];
                 for (var i = 0; i < records.length; i++) {
+                    // if(i==0){
+                    //     Rally.getApp().setLoading("Loading page "+page+ " of "+total_pages);
+                    // }
                     var record = records[i];
                     csv.push( this._getCSVFromRecord(record, grid, store) );
                 }
@@ -1115,18 +1118,19 @@ Ext.define("QCSApp", {
                             var hierarchy = '';
                             if(rec.get('_type') == "hierarchicalrequirement"){
                                 var feature = rec.get('Feature');
-                                hierarchy =  feature ? feature.FormattedID + ' : ' + feature.Name : '';
-                                hierarchy += feature && feature.Parent ? '<br/>'+ feature.Parent.FormattedID + ' : ' + feature.Parent.Name:'';
-                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ feature.Parent.Parent.FormattedID + ' : ' + feature.Parent.Parent.Name:'';
+                                hierarchy =  feature ? me._getFormattedIdByObject(feature) + ' : ' + feature.Name : '';
+                                hierarchy += feature && feature.Parent ? '<br/>'+ me._getFormattedIdByObject(feature.Parent) + ' : ' + feature.Parent.Name:'';
+                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(feature.Parent.Parent) + ' : ' + feature.Parent.Parent.Name:'';
                             }else{
                                 var parent = rec.get('Parent');
-                                hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
-                                hierarchy += parent && parent.Parent ? '<br/>'+ parent.Parent.FormattedID + ' : ' + parent.Parent.Name:'';
-                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ parent.Parent.Parent.FormattedID + ' : ' + parent.Parent.Parent.Name:'';
+                                //hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
+                                hierarchy =  parent ? me._getFormattedIdByObject(parent) + ' : ' + parent.Name : '';
+                                hierarchy += parent && parent.Parent ? '<br/>'+ me._getFormattedIdByObject(parent.Parent) + ' : ' + parent.Parent.Name:'';
+                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(parent.Parent.Parent) + ' : ' + parent.Parent.Parent.Name:'';
                             }
 
-                            var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')})
-                            var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')})
+                            var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
+                            var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')});
 
                             isInDate1 = isInDate1Obj ? 'Y' : 'N';
                             isInDate2 = isInDate2Obj ? 'Y' : 'N';
@@ -1178,6 +1182,10 @@ Ext.define("QCSApp", {
         
         return deferred.promise;
 
+    },
+
+    _getFormattedIdByObject: function(obj){
+        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(obj);
     },
 
     _getFetchFields: function(){
@@ -1282,9 +1290,7 @@ Ext.define("QCSApp", {
             if(col == 'FormattedID'){
                 columns.push({dataIndex:'SelectedModel',
                                 text:col, flex: 1, 
-                                // tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate'), 
                                 renderer: function(model) { 
-                                        //return model.get(col); 
                                         return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(model.data);
                                 },
                                 exportRenderer: function(model){
@@ -1307,7 +1313,7 @@ Ext.define("QCSApp", {
             }
             
         })
-        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 1 });
+        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2 });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
         columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
