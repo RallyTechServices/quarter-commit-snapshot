@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Mon Jun 27 2016 20:26:32 GMT-0700 (PDT) -->
+    <!--  Build Date: Thu Jul 07 2016 12:03:10 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Jun 27 2016 20:26:32 GMT-0700 (PDT)";
-        var CHECKSUM = 40322162314;
+        var APP_BUILD_DATE = "Thu Jul 07 2016 12:03:10 GMT-0400 (EDT)";
+        var CHECKSUM = 40832881903;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -676,9 +676,6 @@ Ext.define('Rally.technicalservices.FileUtilities', {
             callback: function (records) {
                 var csv = [];
                 for (var i = 0; i < records.length; i++) {
-                    // if(i==0){
-                    //     Rally.getApp().setLoading("Loading page "+page+ " of "+total_pages);
-                    // }
                     var record = records[i];
                     csv.push( this._getCSVFromRecord(record, grid, store) );
                 }
@@ -905,7 +902,7 @@ Ext.define("QCSApp", {
             autoSelect: false,
             fieldLabel: 'Type:',
             labelWidth: 35,
-            initialValue: 'UserStory',
+            value: 'PortfolioItem/Feature',
             margin:10,
             storeConfig: {
                 model: Ext.identityFn('TypeDefinition'),
@@ -945,7 +942,8 @@ Ext.define("QCSApp", {
             boxLabelAlign: 'after',
             fieldLabel: '',
             margin:10,
-            boxLabel: 'Show changed'
+            boxLabel: 'Show changed',
+            checked: true
         }]);
 
         me.down('#selector_box').add({
@@ -1282,9 +1280,30 @@ Ext.define("QCSApp", {
         var columns = [];
         Ext.Array.each(this._getAlwaysSelectedFields(),function(col){
             if(col == 'FormattedID'){
-                columns.push({dataIndex:'SelectedModel',text:col, flex: 1, tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate'), renderer: function(model) { return model.get(col); }}); 
+                columns.push({dataIndex:'SelectedModel',
+                                text:col, flex: 1, 
+                                // tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate'), 
+                                renderer: function(model) { 
+                                        //return model.get(col); 
+                                        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(model.data);
+                                },
+                                exportRenderer: function(model){
+                                    return model.get(col); 
+                                }
+                            }); 
             }else{
-                columns.push({dataIndex:'SelectedModel',text:col, flex: 1,  renderer: function(model) { return model.get(col); }}); 
+                columns.push({dataIndex:'SelectedModel',
+                              text:col, 
+                              flex: 1,  
+                              renderer: function(model) { 
+                                if ( model.get(col) && typeof(model.get(col)) === "object" ) {
+                                    return model.get(col)._refObjectName; 
+                                }else{
+                                    return model.get(col);
+                                }
+                              }
+                            }
+                            ); 
             }
             
         })
