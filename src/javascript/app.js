@@ -43,7 +43,8 @@ Ext.define("QCSApp", {
             name: 'columnNames',
             autoExpand: true,
             modelTypes: ['HierarchicalRequirement','PortfolioItem/Feature','Defect'],
-            alwaysSelectedValues: ['FormattedID','Name']
+            alwaysSelectedValues: ['FormattedID','Name'],
+            fieldBlackList: ['Attachments','UserStories','Children']
         }];
     },
     launch: function() {
