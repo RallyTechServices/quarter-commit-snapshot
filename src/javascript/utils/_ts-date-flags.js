@@ -7,7 +7,7 @@ Ext.define('TSDateFlags',{
         { name: 'PlanEstimate1', type:'number'},
         { name: 'PlanEstimate2', type:'number'},
         { name: 'SelectedModel', type: 'object'},
-        { name: 'ArtifactHierarchy', type: 'string' }
+        { name: 'ArtifactHierarchy', type: 'object' }
     ],
     isSelectable: function() {
         return true;

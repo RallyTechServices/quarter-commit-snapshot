@@ -294,7 +294,14 @@ Ext.define("QCSApp", {
                 model: model_name,
                 filters: model_filters,
                 enablePostGet:true,
-                fetch:me._getFetchFields()
+                fetch:me._getFetchFields(),
+                sorters: [
+                    {
+                        property: 'DragAndDropRank',
+                        direction: 'ASC'
+                    }
+                ]
+
             }).load({
                 callback : function(records, operation, successful) {
                     if (successful){
@@ -305,18 +312,28 @@ Ext.define("QCSApp", {
 
                         Ext.Array.each(records, function(rec){
 
-                            var hierarchy = '';
+                            var hierarchy = {};
                             if(rec.get('_type') == "hierarchicalrequirement"){
                                 var feature = rec.get('Feature');
-                                hierarchy =  feature ? me._getFormattedIdByObject(feature) + ' : ' + feature.Name : '';
-                                hierarchy += feature && feature.Parent ? '<br/>'+ me._getFormattedIdByObject(feature.Parent) + ' : ' + feature.Parent.Name:'';
-                                hierarchy += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(feature.Parent.Parent) + ' : ' + feature.Parent.Parent.Name:'';
+                                hierarchy.html =  feature ? me._getFormattedIdByRecord(feature) + ' : ' + feature.Name : '';
+                                hierarchy.html += feature && feature.Parent ? '<br/>'+ me._getFormattedIdByRecord(feature.Parent) + ' : ' + feature.Parent.Name:'';
+                                hierarchy.html += feature && feature.Parent && feature.Parent.Parent? '<br/>'+ me._getFormattedIdByRecord(feature.Parent.Parent) + ' : ' + feature.Parent.Parent.Name:'';
+
+                                hierarchy.text =  feature ? feature.FormattedID + ' : ' + feature.Name : '';
+                                hierarchy.text += feature && feature.Parent ? '\r'+ feature.Parent.FormattedID + ' : ' + feature.Parent.Name:'';
+                                hierarchy.text += feature && feature.Parent && feature.Parent.Parent? '\r'+ feature.Parent.Parent.FormattedID + ' : ' + feature.Parent.Parent.Name:'';
+
                             }else{
                                 var parent = rec.get('Parent');
                                 //hierarchy =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
-                                hierarchy =  parent ? me._getFormattedIdByObject(parent) + ' : ' + parent.Name : '';
-                                hierarchy += parent && parent.Parent ? '<br/>'+ me._getFormattedIdByObject(parent.Parent) + ' : ' + parent.Parent.Name:'';
-                                hierarchy += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ me._getFormattedIdByObject(parent.Parent.Parent) + ' : ' + parent.Parent.Parent.Name:'';
+                                hierarchy.html =  parent ? me._getFormattedIdByRecord(parent) + ' : ' + parent.Name : '';
+                                hierarchy.html += parent && parent.Parent ? '<br/>'+ me._getFormattedIdByRecord(parent.Parent) + ' : ' + parent.Parent.Name:'';
+                                hierarchy.html += parent && parent.Parent && parent.Parent.Parent? '<br/>'+ me._getFormattedIdByRecord(parent.Parent.Parent) + ' : ' + parent.Parent.Parent.Name:'';
+                                
+                                hierarchy.text =  parent ? parent.FormattedID + ' : ' + parent.Name : '';
+                                hierarchy.text += parent && parent.Parent ? '\r'+ parent.Parent.FormattedID + ' : ' + parent.Parent.Name:'';
+                                hierarchy.text += parent && parent.Parent && parent.Parent.Parent? '\r'+ parent.Parent.Parent.FormattedID + ' : ' + parent.Parent.Parent.Name:'';
+
                             }
 
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
@@ -374,8 +391,10 @@ Ext.define("QCSApp", {
 
     },
 
-    _getFormattedIdByObject: function(obj){
-        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(obj);
+    _getFormattedIdByRecord: function(record){
+        var url = Rally.nav.Manager.getDetailUrl(record);
+        var anchor = "<b><a href='" + url + "' target='_blank'>" + record.FormattedID + "</a></b>";
+        return anchor;
     },
 
     _getFetchFields: function(){
@@ -420,7 +439,8 @@ Ext.define("QCSApp", {
             xtype: 'rallygrid',
             store: store,
             showRowActionsColumn: false,
-            editable: false,            
+            editable: false,
+            defaultSortToRank: true,            
             columnCfgs: this._getColumns(),
             width: this.getWidth()
         });
@@ -476,18 +496,27 @@ Ext.define("QCSApp", {
 
     _getColumns: function() {
         var columns = [];
+        var me = this;
         Ext.Array.each(this._getAlwaysSelectedFields(),function(col){
             if(col == 'FormattedID'){
                 columns.push({dataIndex:'SelectedModel',
                                 text:col, flex: 1, 
                                 renderer: function(model) { 
-                                        return Ext.create('Rally.ui.renderer.template.FormattedIDTemplate',{}).apply(model.data);
+                                        return me._getFormattedIdByRecord(model.data);
                                 },
                                 exportRenderer: function(model){
                                     return model.get(col); 
                                 }
                             }); 
-            }else{
+            }else if(col == 'DragAndDropRank') {
+                columns.push({dataIndex:'SelectedModel',
+                                text:col, 
+                                flex: 1, 
+                                renderer: function(metaData) { 
+                                        return metaData.index + 1;
+                                }
+                            }); 
+            }else {
                 columns.push({dataIndex:'SelectedModel',
                               text:col, 
                               flex: 1,  
@@ -503,7 +532,14 @@ Ext.define("QCSApp", {
             }
             
         })
-        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2 });
+        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2, 
+                                    renderer: function(ArtifactHierarchy){ 
+                                        return ArtifactHierarchy.html;
+                                    }, 
+                                    exportRenderer: function(ArtifactHierarchy){ 
+                                        return ArtifactHierarchy.text;
+                                    }
+                                });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
         columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
