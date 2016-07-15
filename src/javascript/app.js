@@ -29,9 +29,9 @@ Ext.define("QCSApp", {
             return columns.split(',');
         }
         
-        columns = Ext.Array.filter( columns, function(column){
-            return ( column != 'FormattedID' );
-        });
+        // columns = Ext.Array.filter( columns, function(column){
+        //     return ( column != 'FormattedID' );
+        // });
         
         return Ext.Array.unique( columns );
     },
@@ -196,6 +196,7 @@ Ext.define("QCSApp", {
                             failure: function(error) {
                                 me.logger.log('Failed');
                                 me.setLoading(false);
+                                me.down('#display_box').removeAll();
                                 Rally.ui.notify.Notifier.showWarning({message: error});
                             }
                         });
@@ -311,7 +312,8 @@ Ext.define("QCSApp", {
                         var isInDate1,isInDate2,planEstimate1,planEstimate2;     
                         var model_with_dates = [];
 
-                        Ext.Array.each(records, function(rec){
+
+                        Ext.Array.each(records, function(rec,index){
 
                             var hierarchy = {};
                             if(rec.get('_type') == "hierarchicalrequirement"){
@@ -353,26 +355,49 @@ Ext.define("QCSApp", {
 
 
                             if(!showChanged){
-                                var with_date_flag = Ext.create('TSDateFlags',{
+                                // var with_date_flag = Ext.create('TSDateFlags',{
+                                //     Date1: isInDate1,
+                                //     Date2: isInDate2,
+                                //     PlanEstimate1: planEstimate1,
+                                //     PlanEstimate2: planEstimate2,
+                                //     ArtifactHierarchy: hierarchy,                                    
+                                //     'SelectedModel': rec
+                                // });
+
+                                var with_date_flag = {
                                     Date1: isInDate1,
                                     Date2: isInDate2,
                                     PlanEstimate1: planEstimate1,
                                     PlanEstimate2: planEstimate2,
-                                    ArtifactHierarchy: hierarchy,                                    
+                                    ArtifactHierarchy: hierarchy,
+                                    Rank: index +1,
                                     'SelectedModel': rec
-                                });
-                                model_with_dates.push(with_date_flag);
+                                };
+                                //model_with_dates.push(with_date_flag);
+                                model_with_dates.push(_.assign(with_date_flag,rec.data));
 //                            }else if(isInDate1 != isInDate2 || planEstimate1 != planEstimate2){
                             }else if(isInDate1 != isInDate2){
-                                var with_date_flag = Ext.create('TSDateFlags',{
+                                // var with_date_flag = Ext.create('TSDateFlags',{
+                                //     Date1: isInDate1,
+                                //     Date2: isInDate2,
+                                //     PlanEstimate1: planEstimate1,
+                                //     PlanEstimate2: planEstimate2,     
+                                //     ArtifactHierarchy: hierarchy,                                    
+                                //     'SelectedModel': rec
+                                // });
+
+                                var with_date_flag = {
                                     Date1: isInDate1,
                                     Date2: isInDate2,
                                     PlanEstimate1: planEstimate1,
                                     PlanEstimate2: planEstimate2,     
-                                    ArtifactHierarchy: hierarchy,                                    
+                                    ArtifactHierarchy: hierarchy,
+                                    Rank: index +1,
                                     'SelectedModel': rec
-                                });
-                                model_with_dates.push(with_date_flag);
+                                };
+
+                                //model_with_dates.push(with_date_flag);
+                                model_with_dates.push(_.assign(with_date_flag,rec.data));
                             }
                         });
 
@@ -436,15 +461,6 @@ Ext.define("QCSApp", {
 
         this.logger.log('_displayGrid>>',store);
 
-        this.down('#display_box').add({
-            xtype: 'rallygrid',
-            store: store,
-            showRowActionsColumn: false,
-            editable: false,
-            defaultSortToRank: true,            
-            columnCfgs: this._getColumns(),
-            width: this.getWidth()
-        });
 
          this.down('#selector_box').add({
             xtype:'rallybutton',
@@ -463,6 +479,23 @@ Ext.define("QCSApp", {
             margin: '10',
             scope: this
         });
+
+        var grid = {
+            xtype: 'rallygrid',
+            store: store,
+            showRowActionsColumn: false,
+            editable: false,
+            //defaultSortToRank: true,
+            sortableColumns: true,            
+            columnCfgs: this._getColumns(),
+            width: this.getWidth()
+        }
+
+        this.logger.log('grid before rendering',grid);
+
+        this.down('#display_box').add(grid);
+
+
 
 
 
@@ -498,10 +531,13 @@ Ext.define("QCSApp", {
     _getColumns: function() {
         var columns = [];
         var me = this;
-        Ext.Array.each(this._getAlwaysSelectedFields(),function(col){
+        Ext.Array.each(me._getAlwaysSelectedFields(),function(col){
+
+
             if(col == 'FormattedID'){
                 columns.push({dataIndex:'SelectedModel',
                                 text:col, flex: 1, 
+                                sortable:true,
                                 renderer: function(model) { 
                                         return me._getFormattedIdByRecord(model.data);
                                 },
@@ -510,29 +546,69 @@ Ext.define("QCSApp", {
                                 }
                             }); 
             }else if(col == 'DragAndDropRank') {
-                columns.push({dataIndex:'SelectedModel',
+                columns.push({dataIndex:'Rank',
                                 text:col, 
                                 flex: 1, 
-                                renderer: function(metaData) { 
-                                        return metaData.index + 1;
-                                }
+                                sortable:true
                             }); 
             }else {
-                columns.push({dataIndex:'SelectedModel',
+
+                columns.push({dataIndex:col,
                               text:col, 
                               flex: 1,  
-                              renderer: function(model) { 
-                                if ( model.get(col) && typeof(model.get(col)) === "object" ) {
-                                    return model.get(col)._refObjectName; 
+                              sortable:true
+                              ,
+                              renderer: function(value) { 
+
+                                if ( value && typeof(value) === "object" ) {
+                                    return value._refObjectName; 
                                 }else{
-                                    return model.get(col);
+                                    return value;
                                 }
                               }
                             }
                             ); 
             }
+
+
+            // if(col == 'FormattedID'){
+            //     columns.push({dataIndex:'SelectedModel',
+            //                     text:col, flex: 1, 
+            //                     sortable:true,
+            //                     renderer: function(model) { 
+            //                             return me._getFormattedIdByRecord(model.data);
+            //                     },
+            //                     exportRenderer: function(model){
+            //                         return model.get(col); 
+            //                     }
+            //                 }); 
+            // }else if(col == 'DragAndDropRank') {
+            //     columns.push({dataIndex:'SelectedModel',
+            //                     text:col, 
+            //                     flex: 1, 
+            //                     sortable:true,
+            //                     renderer: function(metaData) { 
+            //                             return metaData.index + 1;
+            //                     }
+            //                 }); 
+            // }else {
+            //     columns.push({dataIndex:'SelectedModel',
+            //                   text:col, 
+            //                   flex: 1,  
+            //                   sortable:true,
+            //                   renderer: function(model) { 
+            //                     if ( model.get(col) && typeof(model.get(col)) === "object" ) {
+            //                         return model.get(col)._refObjectName; 
+            //                     }else{
+            //                         return model.get(col);
+            //                     }
+            //                   }
+            //                 }
+            //                 ); 
+            // }
             
-        })
+        });
+
         columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2, 
                                     renderer: function(ArtifactHierarchy){ 
                                         return ArtifactHierarchy.html;
@@ -545,6 +621,7 @@ Ext.define("QCSApp", {
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
         columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
         columns.push({dataIndex:'Date2',text:'Date 2 Commit?', flex: 1 });
+
         return columns;
     },
 
