@@ -3,10 +3,10 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Fri Jul 15 2016 16:18:49 GMT-0400 (EDT) -->
+    <!--  Build Date: Tue Aug 02 2016 16:20:04 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Jul 15 2016 16:18:49 GMT-0400 (EDT)";
+        var APP_BUILD_DATE = "Tue Aug 02 2016 16:20:04 GMT-0400 (EDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     
