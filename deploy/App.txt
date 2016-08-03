@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Tue Aug 02 2016 16:20:03 GMT-0400 (EDT) -->
+    <!--  Build Date: Wed Aug 03 2016 16:33:22 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Aug 02 2016 16:20:03 GMT-0400 (EDT)";
-        var CHECKSUM = 52031311614;
+        var APP_BUILD_DATE = "Wed Aug 03 2016 16:33:22 GMT-0400 (EDT)";
+        var CHECKSUM = 55962400377;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -425,8 +425,8 @@ Ext.define('TSDateFlags',{
         { name: 'Date2', type: 'string' },
         { name: 'PlanEstimate1', type:'number'},
         { name: 'PlanEstimate2', type:'number'},
-        { name: 'SelectedModel', type: 'object'},
-        { name: 'ArtifactHierarchy', type: 'object' },
+        { name: 'SelectedModel', type: 'object', sortType: 'asString'},
+        { name: 'ArtifactHierarchy', type: 'string' },
     ],
     isSelectable: function() {
         return true;
@@ -839,10 +839,7 @@ Ext.define("QCSApp", {
             return columns.split(',');
         }
         
-        // columns = Ext.Array.filter( columns, function(column){
-        //     return ( column != 'FormattedID' );
-        // });
-        console.log('_getAlwaysSelectedFields',columns);
+        // console.log('_getAlwaysSelectedFields',columns);
         return Ext.Array.unique( columns );
     },
 
@@ -854,11 +851,12 @@ Ext.define("QCSApp", {
             autoExpand: true,
             modelTypes: ['HierarchicalRequirement','PortfolioItem/Feature','Defect'],
             alwaysSelectedValues: ['FormattedID','Name'],
-            fieldBlackList: ['Attachments','UserStories','Children']
+            fieldBlackList: ['Attachments','UserStories','Children','PredecessorsAndSuccessors','Dependencies']
         }];
     },
     launch: function() {
         var me = this;
+        me.fetchFields = me._getFetchFields();
         me._addSelector();
     },
 
@@ -1172,7 +1170,7 @@ Ext.define("QCSApp", {
                 model: model_name,
                 filters: model_filters,
                 enablePostGet:true,
-                fetch:me._getFetchFields(),
+                fetch:me.fetchFields,
                 sorters: [
                     {
                         property: 'DragAndDropRank',
@@ -1257,7 +1255,34 @@ Ext.define("QCSApp", {
                                     Rank: index +1,
                                     'SelectedModel': rec
                                 };
-                                model_with_dates.push(_.assign(with_date_flag,rec.data));
+
+                                Ext.Array.each(me.fetchFields,function(field){
+                                    value = rec.data[field];
+                                    if ( value && Ext.isObject(value) ) {
+                                        if('Milestones'==field || 'Tags' == field){
+                                            var milestones = []
+                                            Ext.Array.each(value._tagsNameArray,function(tag){
+                                                milestones.push(tag.Name);
+                                            });
+                                            with_date_flag[field] = milestones.toString();
+                                        }else{
+                                            with_date_flag[field]=value._refObjectName; 
+                                        }
+
+                                    }else{
+                                        with_date_flag[field]=value;
+                                    }                                    
+                                });                                
+                                // Ext.Object.each(rec.data, function(key,value){
+                                //     if ( value && Ext.isObject(value) ) {
+                                //         with_date_flag[key]=value._refObjectName; 
+                                //     }else{
+                                //         with_date_flag[key]=value;
+                                //     }
+                                    
+                                // });
+                                model_with_dates.push(with_date_flag);
+                                //model_with_dates.push(_.assign(with_date_flag,rec.data));
                             }else if(isInDate1 != isInDate2){
 
 
@@ -1274,8 +1299,35 @@ Ext.define("QCSApp", {
                                     Rank: index +1,
                                     'SelectedModel': rec
                                 };
+                                Ext.Array.each(me.fetchFields,function(field){
+                                    value = rec.data[field];
+                                    if ( value && Ext.isObject(value) ) {
+                                        if('Milestones'==field || 'Tags' == field){
+                                            var milestones = []
+                                            Ext.Array.each(value._tagsNameArray,function(tag){
+                                                milestones.push(tag.Name);
+                                            });
+                                            with_date_flag[field] = milestones.toString();
+                                        }else{
+                                            with_date_flag[field]=value._refObjectName; 
+                                        }
+                                    }else{
+                                        with_date_flag[field]=value;
+                                    }                                    
+                                });
 
-                                model_with_dates.push(_.assign(with_date_flag,rec.data));
+                                // Ext.Object.each(rec.data, function(key,value){
+                                //     if ( value && Ext.isObject(value) ) {
+                                //         with_date_flag[key]=value._refObjectName; 
+                                //     }else{
+                                //         with_date_flag[key]=value;
+                                //     }
+                                    
+                                // });
+
+                                model_with_dates.push(with_date_flag);
+
+                                //model_with_dates.push(_.assign(with_date_flag,rec.data));
                             }
                         });
 
@@ -1305,6 +1357,7 @@ Ext.define("QCSApp", {
         var fetchFields = [];
         fetchFields = this._getAlwaysSelectedFields();
         fetchFields.push('Parent','Feature','FormattedID','Name');
+        return fetchFields;
     },
 
     _loadAStoreWithAPromise: function(model_name, model_fields,model_filters){
@@ -1416,7 +1469,7 @@ Ext.define("QCSApp", {
                 columns.push({dataIndex:'SelectedModel',
                                 text:col, 
                                 flex: 1, 
-                                sortable:true,
+                                sortable: false,
                                 renderer: function(model) { 
                                     return me._getFormattedIdByRecord(model.data);
                                 },
@@ -1427,28 +1480,26 @@ Ext.define("QCSApp", {
             }else if(col == 'DragAndDropRank') {
                 columns.push({dataIndex:'Rank',
                                 text:col, 
-                                flex: 1, 
-                                sortable:true
+                                flex: 1 
                             }); 
+            }else if(col.indexOf('Date') > -1){
+                columns.push({dataIndex:col,
+                              text:col, 
+                              flex: 1,
+                              xtype: 'datecolumn',   
+                              format:'m-d-Y' 
+                            });                 
+
             }else {
                 columns.push({dataIndex:col,
                               text:col, 
-                              flex: 1,  
-                              sortable:true,
-                              renderer: function(value) { 
-                                if ( value && Ext.isObject(value) ) {
-                                    return value._refObjectName; 
-                                }else{
-                                    return value;
-                                }
-                              }
-                            }
-                            ); 
+                              flex: 1
+                            }); 
             }
            
         });
 
-        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2, 
+        columns.push({dataIndex:'ArtifactHierarchy',text:'Artifact Hierarchy', flex: 2, sortable: false,
                                     renderer: function(ArtifactHierarchy){ 
                                         return ArtifactHierarchy.html;
                                     }, 
@@ -1458,8 +1509,8 @@ Ext.define("QCSApp", {
                                 });
         columns.push({dataIndex:'PlanEstimate1',text:'PlanEstimate for Date 1', flex: 1 });
         columns.push({dataIndex:'PlanEstimate2',text:'PlanEstimate for Date 2', flex: 1 });
-        columns.push({dataIndex:'PlannedEndDate1',text:'PlannedEndDate for Date 1', flex: 1 });
-        columns.push({dataIndex:'PlannedEndDate2',text:'PlannedEndDate for Date 2', flex: 1 });  
+        columns.push({dataIndex:'PlannedEndDate1',text:'PlannedEndDate for Date 1', flex: 1, xtype: 'datecolumn',   format:'m-d-Y'  });
+        columns.push({dataIndex:'PlannedEndDate2',text:'PlannedEndDate for Date 2', flex: 1, xtype: 'datecolumn',   format:'m-d-Y'  });  
         columns.push({dataIndex:'Release1',text:'Release for Date 1', flex: 1 });
         columns.push({dataIndex:'Release2',text:'Release for Date 2', flex: 1 });  
         columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
