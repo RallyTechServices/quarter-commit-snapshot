@@ -304,10 +304,6 @@ Ext.define("QCSApp", {
     _getDataFromSnapShotStoreByObjectIds:function(oids,date){
         var deferred = Ext.create('Deft.Deferred');
 
-        // var object_ids = [];
-        // Ext.Array.each(artifacts,function(artifact){
-        //     object_ids.push(artifact.ObjectID);
-        // });
 
         var artifact_type = this.down('#artifact_type').value;
 
@@ -373,9 +369,7 @@ Ext.define("QCSApp", {
                     if (successful){
 
                         //Using Extended model
-                        var isInDate1,isInDate2,planEstimate1,planEstimate2;     
                         var model_with_dates = [];
-
 
                         Ext.Array.each(records, function(rec,index){
 
@@ -406,6 +400,9 @@ Ext.define("QCSApp", {
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
                             var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')});
 
+                            var isInDate1, isInDate2, planEstimate1, planEstimate2;
+                            var release1 = '--';
+                            var release2 = '--';
 
                             isInDate1 = isInDate1Obj && isInDate1Obj.Release && (me.release.get('Name') == isInDate1Obj.Release.Name) ? 'Y' : 'N';
                             isInDate2 = isInDate2Obj && isInDate2Obj.Release && (me.release.get('Name') == isInDate2Obj.Release.Name) ? 'Y' : 'N';
@@ -422,15 +419,19 @@ Ext.define("QCSApp", {
 
                             if(isInDate1Obj){
                                 plannedEndDate1 = isInDate1Obj.PlannedEndDate;
-                                release1 = isInDate1Obj.Release ? isInDate1Obj.Release.Name : '--';
+                                release1 = isInDate1Obj && isInDate1Obj.Release ? isInDate1Obj.Release.Name : '--';
                             }
 
                             if(isInDate2Obj){
                                 plannedEndDate2 = isInDate2Obj.PlannedEndDate;
-                                release2 = isInDate2Obj.Release ? isInDate2Obj.Release.Name : '--';
+                                release2 = isInDate2Obj && isInDate2Obj.Release ? isInDate2Obj.Release.Name : '--';
                             }
 
-                            if(!showChanged){
+                            if(showChanged && isInDate1 == isInDate2){
+                                return;
+                            }
+
+                            //if(!showChanged){
 
                                 var with_date_flag = {
                                     Date1: isInDate1,
@@ -443,6 +444,7 @@ Ext.define("QCSApp", {
                                     Release1: release1,
                                     Release2: release2,
                                     Rank: index +1,
+                                    FID:rec.get('FormattedID'),
                                     'SelectedModel': rec
                                 };
 
@@ -458,67 +460,17 @@ Ext.define("QCSApp", {
                                         }else{
                                             with_date_flag[field]=value._refObjectName; 
                                         }
-
-                                    }else{
+                                    }
+                                    else if('FormattedID' == field){
+                                            with_date_flag[field]=me._getFormattedIdByRecord(rec.data);
+                                    }
+                                    else{
                                         with_date_flag[field]=value;
                                     }                                    
-                                });                                
-                                // Ext.Object.each(rec.data, function(key,value){
-                                //     if ( value && Ext.isObject(value) ) {
-                                //         with_date_flag[key]=value._refObjectName; 
-                                //     }else{
-                                //         with_date_flag[key]=value;
-                                //     }
-                                    
-                                // });
-                                model_with_dates.push(with_date_flag);
-                                //model_with_dates.push(_.assign(with_date_flag,rec.data));
-                            }else if(isInDate1 != isInDate2){
-
-
-                                var with_date_flag = {
-                                    Date1: isInDate1,
-                                    Date2: isInDate2,
-                                    PlanEstimate1: planEstimate1,
-                                    PlanEstimate2: planEstimate2,     
-                                    ArtifactHierarchy: hierarchy,
-                                    PlannedEndDate1: plannedEndDate1,
-                                    PlannedEndDate2: plannedEndDate2,
-                                    Release1: release1,
-                                    Release2: release2,                                   
-                                    Rank: index +1,
-                                    'SelectedModel': rec
-                                };
-                                Ext.Array.each(me.fetchFields,function(field){
-                                    value = rec.data[field];
-                                    if ( value && Ext.isObject(value) ) {
-                                        if('Milestones'==field || 'Tags' == field){
-                                            var milestones = []
-                                            Ext.Array.each(value._tagsNameArray,function(tag){
-                                                milestones.push(tag.Name);
-                                            });
-                                            with_date_flag[field] = milestones.toString();
-                                        }else{
-                                            with_date_flag[field]=value._refObjectName; 
-                                        }
-                                    }else{
-                                        with_date_flag[field]=value;
-                                    }                                    
-                                });
-
-                                // Ext.Object.each(rec.data, function(key,value){
-                                //     if ( value && Ext.isObject(value) ) {
-                                //         with_date_flag[key]=value._refObjectName; 
-                                //     }else{
-                                //         with_date_flag[key]=value;
-                                //     }
-                                    
-                                // });
+                                });                             
 
                                 model_with_dates.push(with_date_flag);
-
-                                //model_with_dates.push(_.assign(with_date_flag,rec.data));
-                            }
+                               
                         });
 
                         deferred.resolve(model_with_dates);              
@@ -653,19 +605,14 @@ Ext.define("QCSApp", {
     _getColumns: function() {
         var columns = [];
         var me = this;
-        Ext.Array.each(me._getAlwaysSelectedFields(),function(col){
+        columns.push({dataIndex:'FID',text:'FormattedID', flex: 1, hidden:true });
 
+        Ext.Array.each(me._getAlwaysSelectedFields(),function(col){
             if(col == 'FormattedID'){
-                columns.push({dataIndex:'SelectedModel',
+                columns.push({dataIndex:col,
                                 text:col, 
                                 flex: 1, 
-                                sortable: false,
-                                renderer: function(model) { 
-                                    return me._getFormattedIdByRecord(model.data);
-                                },
-                                exportRenderer: function(model){
-                                    return model.get(col); 
-                                }
+                                _csvIgnoreRender:true
                             }); 
             }else if(col == 'DragAndDropRank') {
                 columns.push({dataIndex:'Rank',
@@ -703,8 +650,8 @@ Ext.define("QCSApp", {
         columns.push({dataIndex:'PlannedEndDate2',text:'PlannedEndDate for Date 2', flex: 1, xtype: 'datecolumn',   format:'m-d-Y'  });  
         columns.push({dataIndex:'Release1',text:'Release for Date 1', flex: 1 });
         columns.push({dataIndex:'Release2',text:'Release for Date 2', flex: 1 });  
-        columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
-        columns.push({dataIndex:'Date2',text:'Date 2 Commit?', flex: 1 });
+        //columns.push({dataIndex:'Date1',text:'Date 1 Commit?', flex: 1 });
+        //columns.push({dataIndex:'Date2',text:'Date 2 Commit?', flex: 1 });
 
         return columns;
     },
