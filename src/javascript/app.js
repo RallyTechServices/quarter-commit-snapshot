@@ -12,11 +12,7 @@ Ext.define("QCSApp", {
         name : "QCSApp"
     },
     
-    config: {
-        defaultSettings: {
-            columnNames: ['FormattedID','Name']
-        }
-    },
+
 
     _getAlwaysSelectedFields: function() {
         var columns = this.getSetting('columnNames') ;
@@ -282,7 +278,8 @@ Ext.define("QCSApp", {
                     "__At": date,
             },
             "sort": { "_ValidFrom": -1 },
-            useHttpPost:true,
+            "removeUnauthorizedSnapshots":true,
+            "useHttpPost":true,
              "hydrate": ["Release"]
         });
 
@@ -317,8 +314,9 @@ Ext.define("QCSApp", {
                     "__At": date,
             },
             "sort": { "_ValidFrom": -1 },
-            useHttpPost:true,
-             "hydrate": ["Release"]
+            "removeUnauthorizedSnapshots":true,
+            "useHttpPost":true,
+            "hydrate": ["Release"]
         });
 
         snapshotStore.load({
@@ -400,7 +398,7 @@ Ext.define("QCSApp", {
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
                             var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')});
 
-                            var isInDate1, isInDate2, planEstimate1, planEstimate2;
+                            var isInDate1, isInDate2, planEstimate1, planEstimate2,plannedEndDate1,plannedEndDate2;
                             var release1 = '--';
                             var release2 = '--';
 
