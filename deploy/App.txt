@@ -3,11 +3,11 @@
 <head>
     <title>Quarter Commit Snapshot</title>
     <!--  (c) 2015,2016 CA Technologies.  All Rights Reserved. -->
-    <!--  Build Date: Thu Aug 04 2016 16:31:27 GMT-0400 (EDT) -->
+    <!--  Build Date: Thu Mar 30 2017 14:22:33 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Aug 04 2016 16:31:27 GMT-0400 (EDT)";
-        var CHECKSUM = 52416957726;
+        var APP_BUILD_DATE = "Thu Mar 30 2017 14:22:33 GMT-0700 (PDT)";
+        var CHECKSUM = 52557604784;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -822,11 +822,7 @@ Ext.define("QCSApp", {
         name : "QCSApp"
     },
     
-    config: {
-        defaultSettings: {
-            columnNames: ['FormattedID','Name']
-        }
-    },
+
 
     _getAlwaysSelectedFields: function() {
         var columns = this.getSetting('columnNames') ;
@@ -1092,7 +1088,8 @@ Ext.define("QCSApp", {
                     "__At": date,
             },
             "sort": { "_ValidFrom": -1 },
-            useHttpPost:true,
+            "removeUnauthorizedSnapshots":true,
+            "useHttpPost":true,
              "hydrate": ["Release"]
         });
 
@@ -1127,8 +1124,9 @@ Ext.define("QCSApp", {
                     "__At": date,
             },
             "sort": { "_ValidFrom": -1 },
-            useHttpPost:true,
-             "hydrate": ["Release"]
+            "removeUnauthorizedSnapshots":true,
+            "useHttpPost":true,
+            "hydrate": ["Release"]
         });
 
         snapshotStore.load({
@@ -1210,7 +1208,7 @@ Ext.define("QCSApp", {
                             var isInDate1Obj = _.find(date1_ids, { 'ObjectID': rec.get('ObjectID')});
                             var isInDate2Obj = _.find(date2_ids, { 'ObjectID': rec.get('ObjectID')});
 
-                            var isInDate1, isInDate2, planEstimate1, planEstimate2;
+                            var isInDate1, isInDate2, planEstimate1, planEstimate2,plannedEndDate1,plannedEndDate2;
                             var release1 = '--';
                             var release2 = '--';
 
